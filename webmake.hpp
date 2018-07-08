@@ -23,6 +23,6 @@ public:
 
 // Converters:
 void MakeHTML(path_list &files, WebMakeApp *app);
-void MakeJS(path_list &files, WebMakeApp *app);
 void MakeCSS(path_list &files, WebMakeApp *app);
+void MakeJS(path_list &files, string &target, WebMakeApp *app);
 

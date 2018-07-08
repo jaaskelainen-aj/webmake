@@ -10,10 +10,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include "webmake.hpp"
 
-void MakeJS(path_list &files, WebMakeApp *app)
+void MakeJS(path_list &files, string &target, WebMakeApp *app)
 {
-    cout<<"Building JS\n  app.js\n";
-    app->dir.set_base("app.js");
+    cout<<"Building JS - "<<target<<"\n";
+    app->dir.set_base(target);
 
     if(!app->args.get_value("-js").compare("cc")) {
         ostringstream err;

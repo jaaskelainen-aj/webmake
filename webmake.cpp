@@ -23,19 +23,23 @@ WebMakeApp::WebMakeApp()
     // Intentionally left blank.
 }
 
+const int MAX_JS_BUNDLES = 10;
 int main(int argc, char **argv)
 {
     char line[255];
     enum STATE { NONE, HTML, JS, CSS } state;
-    path_list html_files, js_files, css_files;
-
-    cout << "Webmake 0.1 (Jun 2018)\n";
+    path_list html_files, css_files;
+    path_list js_files[MAX_JS_BUNDLES];
+    string js_target[MAX_JS_BUNDLES];
+    int js_max = -1;
+    cout << "Webmake 0.2 (Jul 2018)\n";
     WebMakeApp app;
     app.args += argument("-html",  true, "Builds http files with named includes.");
     app.args += argument("-js",    true, "Builds js files with concatenate [cat] or Closure [cc].");
     app.args += argument("-css",   false, "Builds css files.");
     app.args += argument("-out",   true, "Sets the output directory.");
     app.args += argument("-V",     false,"Produce verbose output.");
+    app.args += argument("-?",     false,"Show this help.");
     try{
         app.args.initialize(argc,argv);
     }catch(c4s_exception ce){
@@ -43,9 +47,13 @@ int main(int argc, char **argv)
         app.args.usage();
         return 1;
     }
+    if(app.args.is_set("-?")) {
+        app.args.usage();
+        return 0;
+    }
     app.dir.set(app.args.get_value("-out"));
     if(!app.dir.dirname_exists()) {
-        cerr << "Error: Unable to find output path.\n";
+        cerr << "Error: output path (-out) not specified or not found.\n";
         return 2;
     }
     // Find configuration file.
@@ -58,13 +66,21 @@ int main(int argc, char **argv)
     state = NONE;
     while(!cfg.eof()) {
         cfg.getline(line, sizeof(line));
-        if(line[0] == '#')
+        if(line[0] == '#' || line[0]=='\n' || line[0]=='\r' || line[0]==0)
             continue;
         if(!strncmp("[html",line,5)) {
             state = HTML;
             continue;
         }
         if(!strncmp("[js",line,3)) {
+            char *end = strchr(line+4, ']');
+            if(!end) {
+                cerr << "Incorrect JS syntax in webmake.cfg: "<<line<<'\n';
+                return 3;
+            }
+            *end = 0;
+            js_max++;
+            js_target[js_max] = line+4;
             state = JS;
             continue;
         }
@@ -77,7 +93,7 @@ int main(int argc, char **argv)
             html_files.add(line);
             break;
         case JS:
-            js_files.add(line);
+            js_files[js_max].add(line);
             break;
         case CSS:
             css_files.add(line);
@@ -93,8 +109,10 @@ int main(int argc, char **argv)
         if(app.args.is_set("-html")) {
             MakeHTML(html_files, &app);
         }
-        if(app.args.is_set("-js")) {
-            MakeJS(js_files, &app);
+        if(app.args.is_set("-js") && js_max>=0) {
+            for(int js_ndx=0; js_ndx<=js_max; js_ndx++) {
+                MakeJS(js_files[js_ndx], js_target[js_ndx], &app);
+            }
         }
         if(app.args.is_set("-css")) {
             MakeCSS(css_files, &app);

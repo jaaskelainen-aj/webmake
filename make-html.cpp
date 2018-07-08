@@ -55,7 +55,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
         return;
     }
     if(app->args.is_set("-V"))
-        cout<<"    processing "<<inp.get_path()<<'\n';
+        cout<<"  processing:"<<inp.get_path()<<"; with filter:"<<app->args.get_value("-html")<<'\n';
     dirstack.push(inp);
     while(!input.eof()) {
         input.read(&ch, 1);
@@ -101,6 +101,9 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 break;
             if(ch == ')') {
                 state = PARAMETER;
+                filter[filter_ndx]=0;
+                if(app->args.is_set("-V"))
+                   cout<<"    Filter "<<filter<<" include found.\n";
             }
             else if(filter_ndx<MAX_TAG) {
                 filter[filter_ndx++] = ch;
@@ -124,7 +127,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(prev_ch=='%' && ch=='>') {
                 state = NORMAL;
                 if(!strcmp(tag, "include")) {
-                    if( !filter_ndx || app->args.get_value("-html").compare(filter) )
+                    if( !filter_ndx || !app->args.get_value("-html").compare(filter) )
                     {
                         process_file(path(param), target, app);
                     }
