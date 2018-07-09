@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     path_list js_files[MAX_JS_BUNDLES];
     string js_target[MAX_JS_BUNDLES];
     int js_max = -1;
-    cout << "Webmake 0.3 (Jul 2018)\n";
+    cout << "Webmake 0.4 (Jul 2018)\n";
     WebMakeApp app;
     app.args += argument("-html",  true, "Builds http files with named includes.");
     app.args += argument("-js",    true, "Builds js files with concatenate [cat] or Closure [cc].");

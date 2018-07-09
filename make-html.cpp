@@ -51,11 +51,11 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
 
     ifstream input(inp.get_path().c_str());
     if(!input) {
-        cerr<<"MakeHTML - Unable to read input "<<inp.get_path()<<". Skipping it.\n";
+        cout<<"MakeHTML - Unable to read input "<<inp.get_path()<<". Skipping it.\n";
         return;
     }
     if(app->args.is_set("-V"))
-        cout<<"  processing:"<<inp.get_path()<<"; with filter:"<<app->args.get_value("-html")<<'\n';
+        cout<<"  processing:"<<inp.get_path()<<"; with filter ("<<app->args.get_value("-html")<<")\n";
     dirstack.push(inp);
     while(!input.eof()) {
         input.read(&ch, 1);
@@ -103,7 +103,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 state = PARAMETER;
                 filter[filter_ndx]=0;
                 if(app->args.is_set("-V"))
-                   cout<<"    Filter "<<filter<<" include found.\n";
+                   cout<<"    Filter ("<<filter<<") include found.\n";
             }
             else if(filter_ndx<MAX_TAG) {
                 filter[filter_ndx++] = ch;
@@ -116,7 +116,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             }
             if(param_ndx==0 && ch==' ')
                 break;
-            if(ch==' ') {
+            if(ch==' ' || ch=='%') {
                 param[param_ndx] = 0;
                 state = TAG_NONE;
             }
@@ -127,11 +127,19 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(prev_ch=='%' && ch=='>') {
                 state = NORMAL;
                 if(!strcmp(tag, "include")) {
-                    if( !filter_ndx || !app->args.get_value("-html").compare(filter) )
-                    {
+                    if( !filter_ndx || !app->args.get_value("-html").compare(filter) ) {
                         process_file(path(param), target, app);
+                    } else if(app->args.is_set("-V")) {
+                        cout<<"    Skipping "<<param<<'\n';
                     }
                 }
+                else
+                    cout<<"    Unknown tag:"<<tag<<'\n';
+            }
+            else if(ch=='\n' || ch=='<') {
+                cout<<"    Missing include closing tag!\n";
+                target.write(&ch,1);
+                state = NORMAL;
             }
             break;
         }
