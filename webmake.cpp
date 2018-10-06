@@ -18,21 +18,81 @@ g++ -std=c++14 -Wall -fexceptions -pthread -fuse-cxa-atexit -lc4s -lsass -o webm
 */
 
 #include "webmake.hpp"
+
+// ------------------------------------------------------------------------------------------
+void version(WebMakeApp &app, const char *line)
+{
+    if(!strncmp(line,"file",4)) {
+        const char *ptr = strchr(line,'=');
+        if(!ptr) {
+            cout<<"Incorrect syntax for version file configuration value.\n";
+            return;
+        }
+        ptr += 1;
+        while(*ptr==' ')
+            ptr += 1;
+        app.setVersionFile(ptr);
+    }
+    if(!strncmp(line, "prefix", 6)) {
+        const char *ptr = strchr(line,'=');
+        if(!ptr) {
+            cout<<"Incorrect syntax for version prefix configuration value.\n";
+            return;
+        }
+        ptr += 1;
+        app.setVersionPrefix(ptr);
+    }
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::parseVersionPostfix()
+{
+    char line[255];
+    if(!version_file[0] || !version_prefix[0]) {
+        cout<<"Missing version postfix value, ignored.\n";
+        return;
+    }
+    int pflen = strlen(version_prefix);
+    ifstream vf(version_file);
+    while(!vf.eof()) {
+        vf.getline(line, sizeof(line));
+        if(!strncmp(line, version_prefix, pflen)) {
+            version_postfix = strtol(line+pflen, 0, 10);
+            break;
+        }
+    }
+    cout<<"Using "<<version_postfix<<" as file version postfix.\n";
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::setTarget(const string &target, const char *ext)
+{
+    dir.set_base(target);
+    if(!version_postfix)
+        return;
+    std::ostringstream fname;
+    fname << dir.get_base_plain();
+    fname << '_' <<version_postfix;
+    if(ext) fname<<ext;
+    else fname << dir.get_ext();
+    dir.set_base(fname.str());
+}
+// ------------------------------------------------------------------------------------------
 WebMakeApp::WebMakeApp()
 {
-    // Intentionally left blank.
+    memset(version_file, 0, sizeof(version_file));
+    memset(version_prefix, 0, sizeof(version_prefix));
+    version_postfix = 0;
 }
 
 const int MAX_JS_BUNDLES = 10;
 int main(int argc, char **argv)
 {
     char line[255];
-    enum STATE { NONE, HTML, JS, CSS } state;
+    enum STATE { NONE, HTML, JS, CSS, VERSION } state;
     path_list html_files, css_files;
     path_list js_files[MAX_JS_BUNDLES];
     string js_target[MAX_JS_BUNDLES];
     int js_max = -1;
-    cout << "Webmake 0.4 (Jul 2018)\n";
+    cout << "Webmake 0.5 (Oct 2018)\n";
     WebMakeApp app;
     app.args += argument("-html",  true, "Builds http files with named includes.");
     app.args += argument("-js",    true, "Builds js files with concatenate [cat] or Closure [cc].");
@@ -88,6 +148,10 @@ int main(int argc, char **argv)
             state = CSS;
             continue;
         }
+        if(!strncmp("[version",line,8)) {
+            state = VERSION;
+            continue;
+        }
         switch(state) {
         case HTML:
             html_files.add(line);
@@ -98,12 +162,18 @@ int main(int argc, char **argv)
         case CSS:
             css_files.add(line);
             break;
+        case VERSION:
+            version(app, line);
+            break;
+
         case NONE:
             // Intentionally left empty
             break;
         }
     }
     cfg.close();
+    app.parseVersionPostfix();
+
     // Do conversions
     try {
         if(app.args.is_set("-html")) {
@@ -111,7 +181,8 @@ int main(int argc, char **argv)
         }
         if(app.args.is_set("-js") && js_max>=0) {
             for(int js_ndx=0; js_ndx<=js_max; js_ndx++) {
-                MakeJS(js_files[js_ndx], js_target[js_ndx], &app);
+                app.setTarget(js_target[js_ndx]);
+                MakeJS(js_files[js_ndx], &app);
             }
         }
         if(app.args.is_set("-css")) {
@@ -122,6 +193,7 @@ int main(int argc, char **argv)
         cout << "Build failed: "<<re.what()<<endl;
         return 1;
     }
+
     cout<<"Done.\n";
     return 0;
 }

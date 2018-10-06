@@ -47,7 +47,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
     char filter[MAX_TAG];
     int tag_ndx, param_ndx, filter_ndx;
     path_stack dirstack;
-    enum STATES { NORMAL, TAG_NAME, TAG_NONE, PARAMETER, FILTER } state=NORMAL;
+    enum STATES { NORMAL, TAG_NAME, TAG_NONE, PARAMETER, FILTER, SPECIAL } state=NORMAL;
 
     ifstream input(inp.get_path().c_str());
     if(!input) {
@@ -69,8 +69,27 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                     target.write(&prev_ch,1);
                     target.write(&ch,1);
                 }
-            } else if(ch!='<')
+            }
+            else if((unsigned char)ch==0xc2) { // utf-8 specials
+                if(input.peek() == 0xab) {
+                    input.read(&ch,1); // discard the start '«'
+                    state = SPECIAL;
+                } else
+                    target.write(&ch,1);
+            }
+            else if(ch!='<') {
                 target.write(&ch,1);
+            }
+            break;
+        case SPECIAL:
+            if(ch=='V') {
+                target<<app->getVersionPostfix();
+            } else {
+                cout<<"  Unknown special command «"<<ch<<"»\n.";
+            }
+            // Discard the end tag
+            input.seekg(2, ios_base::cur);
+            state = NORMAL;
             break;
         case TAG_NAME:
             if(prev_ch=='%') {

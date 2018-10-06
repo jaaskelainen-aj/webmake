@@ -22,8 +22,7 @@ void MakeCSS(path_list &files, WebMakeApp *app)
 
         int status = sass_compile_file_context(file_ctx);
         if (status == 0) {
-            app->dir.set_base(css->get_base());
-            app->dir.set_ext(".css");
+            app->setTarget(css->get_base(), ".css");
             ofstream css(app->dir.get_path().c_str());
             css << sass_context_get_output_string(ctx);
             css.close();

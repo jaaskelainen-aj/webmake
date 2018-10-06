@@ -8,13 +8,12 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <sstream>
 #include "webmake.hpp"
 
-void MakeJS(path_list &files, string &target, WebMakeApp *app)
+void MakeJS(path_list &files, WebMakeApp *app)
 {
-    cout<<"Building JS - "<<target<<"\n";
-    app->dir.set_base(target);
-
+    cout<<"Building JS - "<<app->dir.get_base()<<"\n";
     if(!app->args.get_value("-js").compare("cc")) {
         ostringstream err;
         // Find the Closure Compiler in current directory

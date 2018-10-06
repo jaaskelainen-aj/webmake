@@ -17,12 +17,22 @@ using namespace c4s;
 class WebMakeApp {
 public:
     WebMakeApp();
+    void setVersionFile(const char *p) { strncpy(version_file, p, sizeof(version_file)-1); }
+    void setVersionPrefix(const char *p) { strncpy(version_prefix, p, sizeof(version_prefix)-1); }
+    void parseVersionPostfix();
+    int getVersionPostfix() { return version_postfix; }
+    void setTarget(const string &target, const char *ext=0);
+
     program_arguments args;
     path dir;
+private:
+    char version_file[128];
+    char version_prefix[50];
+    int version_postfix;
 };
 
 // Converters:
 void MakeHTML(path_list &files, WebMakeApp *app);
 void MakeCSS(path_list &files, WebMakeApp *app);
-void MakeJS(path_list &files, string &target, WebMakeApp *app);
+void MakeJS(path_list &files, WebMakeApp *app);
 
