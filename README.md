@@ -1,5 +1,33 @@
-# webmake
+# WebMake
 Utility program for web development. Compiles HTML, JS and SASS files. HTML compiler is self-made with own syntax, JS makes use of Google Closure Compiler and SASS uses libsass. Program itself is made with C++.
+
+## Dependencies
+To build the WebMake you need the following libraries. Build instructions are for MacOS. They should be compatible with Linux.
+
+### LibSaas
+GitHub: [LibSass](https://github.com/sass/libsass "LibSass GitHub Project")  
+Requires: automake, libtool
+
+Building:
+```
+./configure
+make
+make install
+```
+### Cpp4Scripts
+GitHub: [Cpp4Scripts](https://github.com/merenluotoa/cpp4scripts "C++ for scripts library")  
+Requires: (no dependensies)
+
+Building:
+```
+./make-builder-osx.sh
+./builder -rel
+./builder -install /usr/local/
+```
+## Building WebMake
+```
+g++ -std=c++14 -Wall -fexceptions -pthread -fuse-cxa-atexit -lc4s -lsass -o webmake webmake.cpp make-html.cpp make-js.cpp make-css.cpp
+```
 
 # Making HTML files
 ## HTML include syntax
