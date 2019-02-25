@@ -20,7 +20,72 @@ g++ -std=c++14 -Wall -fexceptions -pthread -fuse-cxa-atexit -lc4s -lsass -o webm
 #include "webmake.hpp"
 
 // ------------------------------------------------------------------------------------------
-void version(WebMakeApp &app, const char *line)
+WebMakeApp::WebMakeApp()
+{
+    memset(version_file, 0, sizeof(version_file));
+    memset(version_prefix, 0, sizeof(version_prefix));
+    version_postfix = 0;
+    verbose = false;
+}
+// ------------------------------------------------------------------------------------------
+bool WebMakeApp::initializeParams()
+{
+    if(args.is_set("-V"))
+        verbose = true;
+    else
+        verbose = false;
+
+    dir.set(args.get_value("-out"));
+    if(!dir.dirname_exists()) {
+        cerr << "Error: output path (-out) not specified or not found.\n";
+        return false;
+    }
+    return true;
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::readVersion()
+{
+    if(args.is_set("-v")) {
+        version_postfix = (int) strtol(args.get_value("-v").c_str(), 0, 10);
+        return;
+    }
+
+    char line[255];
+    if(!version_file[0] || !version_prefix[0]) {
+        if(verbose)
+            cout<<"Missing version postfix value, ignored.\n";
+        return;
+    }
+    int pflen = strlen(version_prefix);
+    ifstream vf(version_file);
+    while(!vf.eof()) {
+        vf.getline(line, sizeof(line));
+        if(!strncmp(line, version_prefix, pflen)) {
+            version_postfix = (int) strtol(line+pflen, 0, 10);
+            break;
+        }
+    }
+    if(verbose)
+        cout<<"Using "<<version_postfix<<" as file version postfix.\n";
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::setTarget(const string &target, const char *ext)
+{
+    dir.set_base(target);
+    if(!version_postfix) {
+        if(ext)
+            dir.set_ext(ext);
+        return;
+    }
+    std::ostringstream fname;
+    fname << dir.get_base_plain();
+    fname << '_' <<version_postfix;
+    if(ext) fname<<ext;
+    else fname << dir.get_ext();
+    dir.set_base(fname.str());
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::parseVersionCfg(const char *line)
 {
     if(!strncmp(line,"file",4)) {
         const char *ptr = strchr(line,'=');
@@ -31,7 +96,7 @@ void version(WebMakeApp &app, const char *line)
         ptr += 1;
         while(*ptr==' ')
             ptr += 1;
-        app.setVersionFile(ptr);
+        strncpy(version_file, ptr, sizeof(version_file)-1);
     }
     if(!strncmp(line, "prefix", 6)) {
         const char *ptr = strchr(line,'=');
@@ -40,49 +105,10 @@ void version(WebMakeApp &app, const char *line)
             return;
         }
         ptr += 1;
-        app.setVersionPrefix(ptr);
+        strncpy(version_prefix, ptr, sizeof(version_prefix)-1);
     }
 }
-// ------------------------------------------------------------------------------------------
-void WebMakeApp::parseVersionPostfix()
-{
-    char line[255];
-    if(!version_file[0] || !version_prefix[0]) {
-        cout<<"Missing version postfix value, ignored.\n";
-        return;
-    }
-    int pflen = strlen(version_prefix);
-    ifstream vf(version_file);
-    while(!vf.eof()) {
-        vf.getline(line, sizeof(line));
-        if(!strncmp(line, version_prefix, pflen)) {
-            version_postfix = strtol(line+pflen, 0, 10);
-            break;
-        }
-    }
-    cout<<"Using "<<version_postfix<<" as file version postfix.\n";
-}
-// ------------------------------------------------------------------------------------------
-void WebMakeApp::setTarget(const string &target, const char *ext)
-{
-    dir.set_base(target);
-    if(!version_postfix)
-        return;
-    std::ostringstream fname;
-    fname << dir.get_base_plain();
-    fname << '_' <<version_postfix;
-    if(ext) fname<<ext;
-    else fname << dir.get_ext();
-    dir.set_base(fname.str());
-}
-// ------------------------------------------------------------------------------------------
-WebMakeApp::WebMakeApp()
-{
-    memset(version_file, 0, sizeof(version_file));
-    memset(version_prefix, 0, sizeof(version_prefix));
-    version_postfix = 0;
-}
-
+// ==========================================================================================
 const int MAX_JS_BUNDLES = 10;
 int main(int argc, char **argv)
 {
@@ -92,12 +118,15 @@ int main(int argc, char **argv)
     path_list js_files[MAX_JS_BUNDLES];
     string js_target[MAX_JS_BUNDLES];
     int js_max = -1;
-    cout << "Webmake 0.5 (Oct 2018)\n";
+
     WebMakeApp app;
+
+    cout << "Webmake 0.6 (Feb 2018)\n";
     app.args += argument("-html",  true, "Builds http files with named includes.");
     app.args += argument("-js",    true, "Builds js files with concatenate [cat] or Closure [cc].");
     app.args += argument("-css",   false, "Builds css files.");
     app.args += argument("-out",   true, "Sets the output directory.");
+    app.args += argument("-v",     true, "Sets the version for css and js versioning.");
     app.args += argument("-V",     false,"Produce verbose output.");
     app.args += argument("-?",     false,"Show this help.");
     try{
@@ -111,11 +140,9 @@ int main(int argc, char **argv)
         app.args.usage();
         return 0;
     }
-    app.dir.set(app.args.get_value("-out"));
-    if(!app.dir.dirname_exists()) {
-        cerr << "Error: output path (-out) not specified or not found.\n";
+    if(!app.initializeParams())
         return 2;
-    }
+
     // Find configuration file.
     ifstream cfg("webmake.cfg");
     if(!cfg) {
@@ -163,7 +190,7 @@ int main(int argc, char **argv)
             css_files.add(line);
             break;
         case VERSION:
-            version(app, line);
+            app.parseVersionCfg(line);
             break;
 
         case NONE:
@@ -172,7 +199,7 @@ int main(int argc, char **argv)
         }
     }
     cfg.close();
-    app.parseVersionPostfix();
+    app.readVersion();
 
     // Do conversions
     try {

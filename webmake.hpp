@@ -17,18 +17,21 @@ using namespace c4s;
 class WebMakeApp {
 public:
     WebMakeApp();
-    void setVersionFile(const char *p) { strncpy(version_file, p, sizeof(version_file)-1); }
-    void setVersionPrefix(const char *p) { strncpy(version_prefix, p, sizeof(version_prefix)-1); }
-    void parseVersionPostfix();
+    bool initializeParams();
+    void parseVersionCfg(const char *line);
+    void readVersion();
     int getVersionPostfix() { return version_postfix; }
     void setTarget(const string &target, const char *ext=0);
+    bool isVerbose() { return verbose; }
 
     program_arguments args;
     path dir;
+
 private:
     char version_file[128];
     char version_prefix[50];
     int version_postfix;
+    bool verbose;
 };
 
 // Converters:
