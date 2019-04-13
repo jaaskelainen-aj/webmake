@@ -1,6 +1,6 @@
 /*
 Webmake / https://github.com/merenluotoa/webmake
-Copyright 2017-2018, Antti Merenluoto
+Copyright 2017-2019, Antti Merenluoto
 https://antti.merenluoto.org
 
 MIT License:
@@ -27,6 +27,7 @@ WebMakeApp::WebMakeApp()
     version_postfix = 0;
     verbose = false;
     use_chrome_cc = false;
+    run_all = false;
 }
 // ------------------------------------------------------------------------------------------
 bool WebMakeApp::initializeParams()
@@ -53,6 +54,7 @@ void WebMakeApp::initDevParams()
     verbose = false;
     use_chrome_cc = false;
     html_filter = "test";
+    run_all = true;
 }
 // ------------------------------------------------------------------------------------------
 void WebMakeApp::readVersion()
@@ -219,16 +221,16 @@ int main(int argc, char **argv)
 
     // Do conversions
     try {
-        if(app.args.is_set("-html")) {
+        if(app.isRunAll() || app.args.is_set("-html")) {
             MakeHTML(html_files, &app);
         }
-        if(app.args.is_set("-js") && js_max>=0) {
+        if(app.isRunAll() || (app.args.is_set("-js") && js_max>=0)) {
             for(int js_ndx=0; js_ndx<=js_max; js_ndx++) {
                 app.setTarget(js_target[js_ndx]);
                 MakeJS(js_files[js_ndx], &app);
             }
         }
-        if(app.args.is_set("-css")) {
+        if(app.isRunAll() || app.args.is_set("-css")) {
             MakeCSS(css_files, &app);
         }
     }

@@ -25,6 +25,7 @@ public:
     void setTarget(const string &target, const char *ext=0);
     bool isVerbose() { return verbose; }
     bool isChromeCC() { return use_chrome_cc; }
+    bool isRunAll() { return run_all; }
     string getHtmlFilter() { return html_filter; }
     program_arguments args;
     path dir;
@@ -37,6 +38,7 @@ private:
 
     bool verbose;
     bool use_chrome_cc;
+    bool run_all;
     string html_filter;
 };
 
