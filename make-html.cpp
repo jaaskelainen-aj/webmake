@@ -32,7 +32,7 @@ void MakeHTML(path_list &files, WebMakeApp *app)
             cout<<"MakeHTML - Unable to open output file: "<<app->dir.get_path()<<'\n';
             continue;
         }
-        if(!app->args.is_set("-V"))
+        if(!app->isVerbose())
             cout<<"  "<<html->get_base()<<"\n";
         process_file(*html, target, app);
         target.close();
@@ -54,8 +54,8 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
         cout<<"MakeHTML - Unable to read input "<<inp.get_path()<<". Skipping it.\n";
         return;
     }
-    if(app->args.is_set("-V"))
-        cout<<"  processing:"<<inp.get_path()<<"; with filter ("<<app->args.get_value("-html")<<")\n";
+    if(app->isVerbose())
+        cout<<"  processing:"<<inp.get_path()<<"; with filter ("<<app->getHtmlFilter()<<")\n";
     dirstack.push(inp);
     while(!input.eof()) {
         input.read(&ch, 1);
@@ -121,7 +121,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(ch == ')') {
                 state = PARAMETER;
                 filter[filter_ndx]=0;
-                if(app->args.is_set("-V"))
+                if(app->isVerbose())
                    cout<<"    Filter ("<<filter<<") include found.\n";
             }
             else if(filter_ndx<MAX_TAG) {
@@ -146,9 +146,9 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(prev_ch=='%' && ch=='>') {
                 state = NORMAL;
                 if(!strcmp(tag, "include")) {
-                    if( !filter_ndx || !app->args.get_value("-html").compare(filter) ) {
+                    if( !filter_ndx || !app->getHtmlFilter().compare(filter) ) {
                         process_file(path(param), target, app);
-                    } else if(app->args.is_set("-V")) {
+                    } else if(app->isVerbose()) {
                         cout<<"    Skipping "<<param<<'\n';
                     }
                 }

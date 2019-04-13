@@ -14,7 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 void MakeJS(path_list &files, WebMakeApp *app)
 {
     cout<<"Building JS - "<<app->dir.get_base()<<"\n";
-    if(!app->args.get_value("-js").compare("cc")) {
+    if(!app->isChromeCC()) {
         ostringstream err;
         // Find the Closure Compiler in current directory
         path cc("closure-compiler.jar");
@@ -45,7 +45,7 @@ void MakeJS(path_list &files, WebMakeApp *app)
         }
         catch(process_exception pe) {
             cerr<<"MakeJS - Closure failed: "<<pe.what()<<'\n';
-            throw pe;
+            throw std::move(pe);
         }
     }
     else {

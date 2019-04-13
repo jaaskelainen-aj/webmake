@@ -26,6 +26,7 @@ WebMakeApp::WebMakeApp()
     memset(version_prefix, 0, sizeof(version_prefix));
     version_postfix = 0;
     verbose = false;
+    use_chrome_cc = false;
 }
 // ------------------------------------------------------------------------------------------
 bool WebMakeApp::initializeParams()
@@ -40,7 +41,18 @@ bool WebMakeApp::initializeParams()
         cerr << "Error: output path (-out) not specified or not found.\n";
         return false;
     }
+    if(!args.get_value("-js").compare("cc"))
+        use_chrome_cc = true;
+    if(args.is_set("-html"))
+        html_filter = args.get_value("-html");
     return true;
+}
+// ------------------------------------------------------------------------------------------
+void WebMakeApp::initDevParams()
+{
+    verbose = false;
+    use_chrome_cc = false;
+    html_filter = "test";
 }
 // ------------------------------------------------------------------------------------------
 void WebMakeApp::readVersion()
@@ -121,14 +133,15 @@ int main(int argc, char **argv)
 
     WebMakeApp app;
 
-    cout << "Webmake 0.6 (Feb 2018)\n";
-    app.args += argument("-html",  true, "Builds http files with named includes.");
-    app.args += argument("-js",    true, "Builds js files with concatenate [cat] or Closure [cc].");
+    cout << "Webmake 0.7 (Apr 2019)\n";
+    app.args += argument("-html",  true,  "Builds http files with named includes.");
+    app.args += argument("-js",    true,  "Builds js files with concatenate [cat] or Closure [cc].");
     app.args += argument("-css",   false, "Builds css files.");
-    app.args += argument("-out",   true, "Sets the output directory.");
-    app.args += argument("-v",     true, "Sets the version for css and js versioning.");
-    app.args += argument("-V",     false,"Produce verbose output.");
-    app.args += argument("-?",     false,"Show this help.");
+    app.args += argument("-out",   true,  "Sets the output directory.");
+    app.args += argument("-v",     true,  "Sets the version for css and js versioning.");
+    app.args += argument("-V",     false, "Produce verbose output.");
+    app.args += argument("-D",     false, "Run with default develop options: -out ../dist/ -css -js cat -html test");
+    app.args += argument("-?",     false, "Show this help.");
     try{
         app.args.initialize(argc,argv);
     }catch(c4s_exception ce){
@@ -140,7 +153,10 @@ int main(int argc, char **argv)
         app.args.usage();
         return 0;
     }
-    if(!app.initializeParams())
+    if(app.args.is_set("-D")){
+        app.initDevParams();
+    }
+    else if(!app.initializeParams())
         return 2;
 
     // Find configuration file.

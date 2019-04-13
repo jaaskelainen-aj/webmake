@@ -18,20 +18,26 @@ class WebMakeApp {
 public:
     WebMakeApp();
     bool initializeParams();
+    void initDevParams();
     void parseVersionCfg(const char *line);
     void readVersion();
     int getVersionPostfix() { return version_postfix; }
     void setTarget(const string &target, const char *ext=0);
     bool isVerbose() { return verbose; }
-
+    bool isChromeCC() { return use_chrome_cc; }
+    string getHtmlFilter() { return html_filter; }
     program_arguments args;
     path dir;
+
 
 private:
     char version_file[128];
     char version_prefix[50];
     int version_postfix;
+
     bool verbose;
+    bool use_chrome_cc;
+    string html_filter;
 };
 
 // Converters:
