@@ -14,7 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 void MakeJS(path_list &files, WebMakeApp *app)
 {
     cout<<"Building JS - "<<app->dir.get_base()<<"\n";
-    if(!app->isChromeCC()) {
+    if(app->isChromeCC()) {
         ostringstream err;
         // Find the Closure Compiler in current directory
         path cc("closure-compiler.jar");
@@ -52,6 +52,8 @@ void MakeJS(path_list &files, WebMakeApp *app)
         ofstream stump(app->dir.get_path().c_str());
         stump.close();
         for(path_iterator js=files.begin(); js!=files.end(); js++) {
+            if(app->isVerbose())
+                cout<<"  appending:"<<js->get_base()<<'\n';
             app->dir.cat(*js);
         }
     }

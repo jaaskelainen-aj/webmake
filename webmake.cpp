@@ -49,12 +49,18 @@ bool WebMakeApp::initializeParams()
     return true;
 }
 // ------------------------------------------------------------------------------------------
-void WebMakeApp::initDevParams()
+bool WebMakeApp::initDevParams()
 {
     verbose = false;
     use_chrome_cc = false;
     html_filter = "test";
     run_all = true;
+    dir.set("../dist/");
+    if(!dir.dirname_exists()) {
+        cerr << "Error: -D expects output to be '../dist/'. Not found!\n";
+        return false;
+    }
+    return true;
 }
 // ------------------------------------------------------------------------------------------
 void WebMakeApp::readVersion()
@@ -142,7 +148,7 @@ int main(int argc, char **argv)
     app.args += argument("-out",   true,  "Sets the output directory.");
     app.args += argument("-v",     true,  "Sets the version for css and js versioning.");
     app.args += argument("-V",     false, "Produce verbose output.");
-    app.args += argument("-D",     false, "Run with default develop options: -out ../dist/ -css -js cat -html test");
+    app.args += argument("-D",     false, "Run with default develop options: '-out ../dist/ -css -js cat -html test'");
     app.args += argument("-?",     false, "Show this help.");
     try{
         app.args.initialize(argc,argv);
@@ -156,7 +162,8 @@ int main(int argc, char **argv)
         return 0;
     }
     if(app.args.is_set("-D")){
-        app.initDevParams();
+        if(!app.initDevParams())
+            return 2;
     }
     else if(!app.initializeParams())
         return 2;
@@ -233,6 +240,10 @@ int main(int argc, char **argv)
         if(app.isRunAll() || app.args.is_set("-css")) {
             MakeCSS(css_files, &app);
         }
+    }
+    catch (c4s_exception ce) {
+        cout<<"Cpp4Scripts error: "<<ce.what()<<endl;
+        return 1;
     }
     catch (runtime_error re) {
         cout << "Build failed: "<<re.what()<<endl;

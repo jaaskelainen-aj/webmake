@@ -18,7 +18,7 @@ class WebMakeApp {
 public:
     WebMakeApp();
     bool initializeParams();
-    void initDevParams();
+    bool initDevParams();
     void parseVersionCfg(const char *line);
     void readVersion();
     int getVersionPostfix() { return version_postfix; }
