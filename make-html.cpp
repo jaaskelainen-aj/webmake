@@ -1,7 +1,7 @@
 /*
-Webmake / https://github.com/merenluotoa/webmake
-Copyright 2017-2018, Antti Merenluoto
-https://antti.merenluoto.org
+Webmake / https://github.com/jaaskelainen-aj/webmake
+Copyright 2017-2019, Antti Jääskeläinen
+https://antti.jaaskelainen.family
 
 MIT License:
 
@@ -12,8 +12,9 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "webmake.hpp"
+#include <stdint.h>
 #include <string.h>
+#include "webmake.hpp"
 
 const int MAX_TAG = 30;
 const int MAX_PARAM = 128;
@@ -38,7 +39,43 @@ void MakeHTML(path_list &files, WebMakeApp *app)
         target.close();
     }
 }
+// ----------------------------------------------------------------------
+void process_markdown(const path &inp, ofstream &target, WebMakeApp *app)
+{
+    uint8_t md_buf[2048];
+    path ex_p(inp);
 
+    if(!inp.exists()) {
+        cout<<"MakeHTML - Markdown file "<<inp.get_path()<<" not found.\n";
+        return;
+    }
+
+    ex_p.set_ext(".html");
+    ifstream md(inp.get_path().c_str());
+    if(!md) {
+        cout<<"MakeHtml - Unable to open markdown: "<<inp.get_path()<<'\n';
+        return;
+    }
+    ofstream ex_f(ex_p.get_path().c_str());
+    if(!ex_f) {
+        cout<<"MakeHtml - Unable to open html export for markdown: "<<ex_p.get_path()<<'\n';
+        return;
+    }
+
+    hoedown_document *document = WebMakeApp::getMarkdownDoc();
+    hoedown_buffer *html = hoedown_buffer_new(16);
+
+    while(!md.eof()) {
+        md.read((char*)md_buf, sizeof(md_buf));
+        if(!md.gcount()) break;
+        hoedown_document_render(document, html, md_buf, md.gcount());
+        target.write((char*)html->data, html->size);
+        ex_f.write((char*)html->data, html->size);
+    }
+    hoedown_buffer_free(html);
+    md.close();
+    ex_f.close();
+}
 // ----------------------------------------------------------------------
 void process_file(const path &inp, ofstream &target, WebMakeApp *app)
 {
@@ -49,6 +86,10 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
     path_stack dirstack;
     enum STATES { NORMAL, TAG_NAME, TAG_NONE, PARAMETER, FILTER, SPECIAL } state=NORMAL;
 
+    if(!inp.exists()) {
+        cout<<"MakeHTML - Include file "<<inp.get_path()<<" not found.\n";
+        return;
+    }
     ifstream input(inp.get_path().c_str());
     if(!input) {
         cout<<"MakeHTML - Unable to read input "<<inp.get_path()<<". Skipping it.\n";
@@ -83,7 +124,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             break;
         case SPECIAL:
             if(ch=='V') {
-                target<<app->getVersionPostfix();
+                target<<app->getVersionStr();
             } else {
                 cout<<"  Unknown special command «"<<ch<<"»\n.";
             }
@@ -103,7 +144,10 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 if(!strcmp(tag, "include")) {
                     if(ch == '(') state = FILTER;
                     else state = PARAMETER;
-                } else {
+                }
+                else if(!strcmp(tag, "markdown"))
+                    state = PARAMETER;
+                else {
                     cout<<"Unknown tag '"<<tag<<"' in "<<inp.get_path()<<'\n';
                     state = TAG_NONE;
                 }
@@ -139,6 +183,11 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 param[param_ndx] = 0;
                 state = TAG_NONE;
             }
+            else if(ch=='@' && param_ndx==0) {
+                string prefix = app->htmlprefix;
+                strcpy(param, prefix.c_str());
+                param_ndx = prefix.size();
+            }
             else if(param_ndx<MAX_PARAM)
                 param[param_ndx++] = ch;
             break;
@@ -151,6 +200,11 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                     } else if(app->isVerbose()) {
                         cout<<"    Skipping "<<param<<'\n';
                     }
+                }
+                else if(!strcmp(tag, "markdown")) {
+                    string mdpath = app->mdprefix;
+                    mdpath += param;
+                    process_markdown(path(mdpath), target, app);
                 }
                 else
                     cout<<"    Unknown tag:"<<tag<<'\n';

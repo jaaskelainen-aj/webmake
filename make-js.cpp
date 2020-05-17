@@ -1,5 +1,9 @@
 /*
- MIT License:
+Webmake / https://github.com/jaaskelainen-aj/webmake
+Copyright 2017-2019, Antti Jääskeläinen
+https://antti.jaaskelainen.family
+
+MIT License:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -51,10 +55,16 @@ void MakeJS(path_list &files, WebMakeApp *app)
     else {
         ofstream stump(app->dir.get_path().c_str());
         stump.close();
-        for(path_iterator js=files.begin(); js!=files.end(); js++) {
-            if(app->isVerbose())
-                cout<<"  appending:"<<js->get_base()<<'\n';
-            app->dir.cat(*js);
+        try {
+            for(path_iterator js=files.begin(); js!=files.end(); js++) {
+                if(app->isVerbose())
+                    cout<<"  appending:"<<js->get_base()<<'\n';
+                app->dir.cat(*js);
+            }
+        }
+        catch(const c4s_exception &ce) {
+            cerr<<"Concatenation of js-files failed. Check the file paths from config.\n";
+            app->dir.rm();
         }
     }
 }

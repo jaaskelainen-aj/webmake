@@ -1,5 +1,9 @@
 /*
- MIT License:
+Webmake / https://github.com/jaaskelainen-aj/webmake
+Copyright 2017-2019, Antti Jääskeläinen
+https://antti.jaaskelainen.family
+
+MIT License:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -27,7 +31,7 @@ void MakeCSS(path_list &files, WebMakeApp *app)
             css << sass_context_get_output_string(ctx);
             css.close();
         } else {
-            cout<<sass_context_get_error_message(ctx)<<'\n';
+            cerr<<sass_context_get_error_message(ctx)<<'\n';
         }
         sass_delete_file_context(file_ctx);
     }

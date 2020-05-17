@@ -5,18 +5,12 @@ Utility program for web development. Compiles HTML, JS and SASS files. HTML comp
 To build the WebMake you need the following libraries. Build instructions are for MacOS. They should be compatible with Linux.
 
 ### LibSaas
-GitHub: [LibSass](https://github.com/sass/libsass "LibSass GitHub Project")  
-Requires: automake, libtool
+Install with homebrew or MacPorts
+MacPorts: sudo port install libsass
+HomeBrew: (TBD)
 
-Building:
-```
-./configure
-make
-make install
-```
 ### Cpp4Scripts
-GitHub: [Cpp4Scripts](https://github.com/merenluotoa/cpp4scripts "C++ for scripts library")  
-Requires: (no dependensies)
+GitHub: [Cpp4Scripts](https://github.com/jaaskelainen-aj/cpp4scripts "C++ for scripts library")  
 
 Building:
 ```
@@ -24,24 +18,45 @@ Building:
 ./builder -rel
 ./builder -install /usr/local/
 ```
+
+### Hoedown
+Additional dependency to Hoedown library has been added since version 0.8. Hoedown library is used to convert Markdown files into HTML. Additional include tag 'markdown' has been added for this feature.
+
+Clone, make and install the library from https://github.com/hoedown/hoedown
+
 ## Building WebMake
+Modify the install, LibSass and Hoedown within make.sh before building.
 ```
-g++ -std=c++14 -Wall -fexceptions -pthread -fuse-cxa-atexit -lc4s -lsass -o webmake webmake.cpp make-html.cpp make-js.cpp make-css.cpp
+chmod 755 make.sh
+./make.sh
 ```
 
-# Making HTML files
+# WebMake HTML files
 ## HTML include syntax
+With WebMake you can insert include-tags into HTML files. This allows you to build static HTML files from reusable snippets. Use the special tag '<% %>' to mark the include place. Include tag is replaced with what ever content is found from named include file. Includes can be nested. Relative paths are resolved based on the location of the source file i.e. the file with include tag.
+```
+<% include [filename] %>
+```
+Note the spaces between tag, include keyword and the filename. And that file name is not quoted.
 
-# Making JS files
+## Including Markdown files
+
+
+# WebMake JS files
 ## Get closure compiler
 WebMake requires Google's Colosure Compiler to be present if js files are compacted. Download latest version from https://dl.google.com/closure-compiler/compiler-latest.zip. Unzip the compiler and either:
-  o copy the closure-compiler-[version].jar as closure-compiler.jar to same directory as the webmake.cfg file.
-  o make 'CLOSURE_COMPILER' environment variable point to latest compiler.
+- copy the closure-compiler-[version].jar as closure-compiler.jar to same directory as the webmake.cfg file.
+- make 'CLOSURE_COMPILER' environment variable point to the latest compiler.
 
 ## Runtime parameter -js
 With -js parameter the compiler bundles named JS files. Files are named
 under [js] section of the webmake.cfg file. Files are added in the order provided in the
-configuration. -js parameter requires bundle type [cat] or [cc]. cat = simply concatenation of the
-files for easier debugging. cc = Closure Compiler i.e. compiler is used to bundle files to 'app.js'
+configuration. -js parameter requires bundle type [cat] or [cc].
+- cat = simply concatenation of the files for easier debugging. 
+- cc = Closure Compiler i.e. compiler is used to bundle files to 'app.js'
 
-# Making CSS files
+# WebMake CSS files
+With -css parameter files named in [css] section of the configuration are compiled from scss into css.
+
+# GeMarmaneral WebMake parameters
+[TBD]
