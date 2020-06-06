@@ -14,55 +14,62 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <stdint.h>
 #include <string.h>
-#include "webmake.hpp"
+#ifdef WEBMAKE_EXT
+  #include <WebMake_ext.hpp>
+#else
+  #include "webmake.hpp"
+#endif
 
 const int MAX_TAG = 30;
 const int MAX_PARAM = 128;
 
-void process_file(const path &inp, ofstream &, WebMakeApp *app);
+void process_file(const path &inp, ofstream &, WebMakeApp *wma);
 
 // ----------------------------------------------------------------------
-void MakeHTML(path_list &files, WebMakeApp *app)
+void MakeHTML(path_list &files, WebMakeApp *wma)
 {
     ofstream target;
-    cout<<"Building HTML.\n";
+    CS_PRINT_NOTE("Building HTML.");
     for(path_iterator html=files.begin(); html!=files.end(); html++) {
-        app->dir.set_base(html->get_base());
-        target.open(app->dir.get_path().c_str(), ofstream::trunc);
+        wma->dir.set_base(html->get_base());
+        target.open(wma->dir.get_path().c_str(), ofstream::trunc);
         if(!target) {
-            cout<<"MakeHTML - Unable to open output file: "<<app->dir.get_path()<<'\n';
+            CS_VAPRT_ERRO("MakeHTML - Unable to open output file: %s", wma->dir.get_pp());
+            wma->incErrors();
             continue;
         }
-        if(!app->isVerbose())
-            cout<<"  "<<html->get_base()<<"\n";
-        process_file(*html, target, app);
+        CS_VAPRT_INFO("  html:%s", html->get_base().c_str());
+        process_file(*html, target, wma);
         target.close();
     }
 }
 // ----------------------------------------------------------------------
-void process_markdown(const path &inp, ofstream &target, WebMakeApp *app)
+void process_markdown(const path &inp, ofstream &target, WebMakeApp *wma)
 {
     uint8_t md_buf[2048];
     path ex_p(inp);
 
     if(!inp.exists()) {
-        cout<<"MakeHTML - Markdown file "<<inp.get_path()<<" not found.\n";
+        CS_VAPRT_ERRO("MakeHTML - Markdown file %s not found.",inp.get_pp());
+        wma->incErrors();
         return;
     }
 
     ex_p.set_ext(".html");
-    ifstream md(inp.get_path().c_str());
+    ifstream md(inp.get_pp());
     if(!md) {
-        cout<<"MakeHtml - Unable to open markdown: "<<inp.get_path()<<'\n';
+        CS_VAPRT_ERRO("MakeHtml - Unable to open markdown: %s",inp.get_pp());
+        wma->incErrors();
         return;
     }
-    ofstream ex_f(ex_p.get_path().c_str());
+    ofstream ex_f(ex_p.get_pp());
     if(!ex_f) {
-        cout<<"MakeHtml - Unable to open html export for markdown: "<<ex_p.get_path()<<'\n';
+        CS_VAPRT_ERRO("MakeHtml - Unable to open html export for markdown: %s",ex_p.get_pp());
+        wma->incErrors();
         return;
     }
 
-    hoedown_document *document = WebMakeApp::getMarkdownDoc();
+    hoedown_document *document = wma->getMarkdownDoc();
     hoedown_buffer *html = hoedown_buffer_new(16);
 
     while(!md.eof()) {
@@ -77,7 +84,7 @@ void process_markdown(const path &inp, ofstream &target, WebMakeApp *app)
     ex_f.close();
 }
 // ----------------------------------------------------------------------
-void process_file(const path &inp, ofstream &target, WebMakeApp *app)
+void process_file(const path &inp, ofstream &target, WebMakeApp *wma)
 {
     char prev_ch=0, ch;
     char tag[MAX_TAG], param[MAX_PARAM];
@@ -87,16 +94,20 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
     enum STATES { NORMAL, TAG_NAME, TAG_NONE, PARAMETER, FILTER, SPECIAL } state=NORMAL;
 
     if(!inp.exists()) {
-        cout<<"MakeHTML - Include file "<<inp.get_path()<<" not found.\n";
+        path tmp;
+        tmp.read_cwd();
+        CS_VAPRT_ERRO("MakeHTML - Include file %s not found. CWD: %s",inp.get_path().c_str(), tmp.get_path().c_str());
+        wma->incErrors();
         return;
     }
-    ifstream input(inp.get_path().c_str());
+    ifstream input(inp.get_pp());
     if(!input) {
-        cout<<"MakeHTML - Unable to read input "<<inp.get_path()<<". Skipping it.\n";
+        CS_VAPRT_NOTE("MakeHTML - Unable to read input  %s. Skipping it.",inp.get_pp());
+        wma->incErrors();
         return;
     }
-    if(app->isVerbose())
-        cout<<"  processing:"<<inp.get_path()<<"; with filter ("<<app->getHtmlFilter()<<")\n";
+
+    CS_VAPRT_INFO("  processing:%s; with filter (%s)",inp.get_pp(), _C(wma->getHtmlFilter()) );
     dirstack.push(inp);
     while(!input.eof()) {
         input.read(&ch, 1);
@@ -124,9 +135,9 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             break;
         case SPECIAL:
             if(ch=='V') {
-                target<<app->getVersionStr();
+                target<<wma->getVersionStr();
             } else {
-                cout<<"  Unknown special command «"<<ch<<"»\n.";
+                CS_VAPRT_NOTE("  Unknown special command:%c",ch);
             }
             // Discard the end tag
             input.seekg(2, ios_base::cur);
@@ -148,7 +159,7 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 else if(!strcmp(tag, "markdown"))
                     state = PARAMETER;
                 else {
-                    cout<<"Unknown tag '"<<tag<<"' in "<<inp.get_path()<<'\n';
+                    CS_VAPRT_WARN("Unknown tag '%s'in ",tag,inp.get_pp());
                     state = TAG_NONE;
                 }
             }
@@ -165,8 +176,6 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(ch == ')') {
                 state = PARAMETER;
                 filter[filter_ndx]=0;
-                if(app->isVerbose())
-                   cout<<"    Filter ("<<filter<<") include found.\n";
             }
             else if(filter_ndx<MAX_TAG) {
                 filter[filter_ndx++] = ch;
@@ -181,12 +190,12 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
                 break;
             if(ch==' ' || ch=='%') {
                 param[param_ndx] = 0;
+                cout<<param<<'\n';
                 state = TAG_NONE;
             }
             else if(ch=='@' && param_ndx==0) {
-                string prefix = app->htmlprefix;
-                strcpy(param, prefix.c_str());
-                param_ndx = prefix.size();
+                strcpy(param, wma->htmlprefix.c_str());
+                param_ndx = wma->htmlprefix.size();
             }
             else if(param_ndx<MAX_PARAM)
                 param[param_ndx++] = ch;
@@ -195,24 +204,24 @@ void process_file(const path &inp, ofstream &target, WebMakeApp *app)
             if(prev_ch=='%' && ch=='>') {
                 state = NORMAL;
                 if(!strcmp(tag, "include")) {
-                    if( !filter_ndx || !app->getHtmlFilter().compare(filter) ) {
-                        process_file(path(param), target, app);
-                    } else if(app->isVerbose()) {
-                        cout<<"    Skipping "<<param<<'\n';
-                    }
+                    if( !filter_ndx || !wma->getHtmlFilter().compare(filter) ) {
+                        process_file(path(param), target, wma);
+                    } else
+                        CS_VAPRT_INFO("    filtered out: %s",param);
                 }
                 else if(!strcmp(tag, "markdown")) {
-                    string mdpath = app->mdprefix;
+                    string mdpath = wma->mdprefix;
                     mdpath += param;
-                    process_markdown(path(mdpath), target, app);
+                    process_markdown(path(mdpath), target, wma);
                 }
                 else
-                    cout<<"    Unknown tag:"<<tag<<'\n';
+                    CS_VAPRT_WARN("    Unknown tag:%s",tag);
             }
             else if(ch=='\n' || ch=='<') {
-                cout<<"    Missing include closing tag!\n";
+                CS_PRINT_WARN("    Missing include closing tag!");
                 target.write(&ch,1);
                 state = NORMAL;
+                wma->incErrors();
             }
             break;
         }

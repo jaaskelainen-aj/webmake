@@ -17,32 +17,38 @@ g++ -std=c++14 -Wall -fexceptions -pthread -fuse-cxa-atexit -lc4s -lsass -o webm
 ? -I/usr/local/include/cpp4scripts
 */
 
+#include <sys/stat.h>
+#include <iostream>
 #include <sstream>
 #include <iomanip>
 #include "webmake.hpp"
 
-hoedown_renderer* WebMakeApp::renderer=0;
-hoedown_document* WebMakeApp::document=0;
-
 // ------------------------------------------------------------------------------------------
-WebMakeApp::WebMakeApp()
+WebMakeApp::WebMakeApp(ostream &op)
 {
     memset(version_file, 0, sizeof(version_file));
     memset(version_prefix, 0, sizeof(version_prefix));
 
-    verbose = false;
     // html_filter = "test";
     use_chrome_cc = false;
     run_all = true;
+
+    hoedown_html_flags flags = hoedown_html_flags(HOEDOWN_HTML_HARD_WRAP | HOEDOWN_HTML_ESCAPE);
+    hoedown_extensions ext   = hoedown_extensions(HOEDOWN_EXT_TABLES | HOEDOWN_EXT_FENCED_CODE | HOEDOWN_EXT_FOOTNOTES | HOEDOWN_EXT_STRIKETHROUGH);
+    renderer = hoedown_html_renderer_new(flags, 0);
+    document = hoedown_document_new(renderer, ext, 16);
+
+    errors = 0;
+}
+// ------------------------------------------------------------------------------------------
+WebMakeApp::~WebMakeApp()
+{
+    hoedown_document_free(document);
+    hoedown_html_renderer_free(renderer);
 }
 // ------------------------------------------------------------------------------------------
 bool WebMakeApp::initializeParams()
 {
-    if(args.is_set("-V"))
-        verbose = true;
-    else
-        verbose = false;
-
     if(args.is_set("-v")) {
         version_str = args.get_value("-v");
         if(version_str.size()>11)
@@ -70,30 +76,6 @@ bool WebMakeApp::initializeParams()
     return true;
 }
 
-// static -----------------------------------------------------------------------------------
-hoedown_document* WebMakeApp::getMarkdownDoc()
-{
-    if(document)
-        return document;
-    hoedown_html_flags flags = hoedown_html_flags(HOEDOWN_HTML_HARD_WRAP | HOEDOWN_HTML_ESCAPE);
-    hoedown_extensions ext   = hoedown_extensions(HOEDOWN_EXT_TABLES | HOEDOWN_EXT_FENCED_CODE | HOEDOWN_EXT_FOOTNOTES | HOEDOWN_EXT_STRIKETHROUGH);
-    renderer = hoedown_html_renderer_new(flags, 0);
-    document = hoedown_document_new(renderer, ext, 16);
-
-    return document;
-}
-
-// static -----------------------------------------------------------------------------------
-void WebMakeApp::freeMarkdown()
-{
-    if(!document)
-        return;
-    hoedown_document_free(document);
-    hoedown_html_renderer_free(renderer);
-    document = 0;
-    renderer = 0;
-}
-
 // ------------------------------------------------------------------------------------------
 void WebMakeApp::readVersion()
 {
@@ -110,8 +92,7 @@ void WebMakeApp::readVersion()
             break;
         }
     }
-    if(verbose)
-        cout<<"Using '"<<version_str<<"' as file version postfix.\n";
+    CS_VAPRT_INFO("Using '%s' as file version postfix.",version_str.c_str());
 }
 // ------------------------------------------------------------------------------------------
 void WebMakeApp::setTarget(const string &target, const char *ext)
@@ -155,10 +136,14 @@ void WebMakeApp::parseSettingsCfg(const char *line)
         return;
     }
     if(!strncmp(line, "htmlprefix",10)) {
-        htmlprefix = ptr;
+        path tmp(ptr);
+        tmp.make_absolute();
+        htmlprefix = tmp.get_path();
     }
     if(!strncmp(line, "mdprefix",8)) {
-        mdprefix = ptr;
+        path tmp(ptr);
+        tmp.make_absolute();
+        mdprefix = tmp.get_path();
     }
     if(!strncmp(line, "out", 3)) {
         dir = ptr;
@@ -175,7 +160,7 @@ int main(int argc, char **argv)
     string js_target[MAX_JS_BUNDLES];
     int js_max = -1;
 
-    WebMakeApp app;
+    WebMakeApp app(cout);
 
     cout << "Webmake 0.8.3 (May 2020)\n";
     app.args += argument("-html",  true,  "Builds http files with named includes.");
@@ -183,7 +168,7 @@ int main(int argc, char **argv)
     app.args += argument("-css",   false, "Builds css files.");
     app.args += argument("-out",   true,  "Sets the output directory.");
     app.args += argument("-v",     true,  "Sets the version for css and js versioning.");
-    app.args += argument("-V",     false, "Produce verbose output.");
+    app.args += argument("-cl",    false, "Console Log i.e. send log to console instead the current directory.");
     app.args += argument("--help", false, "Show this help.");
     try{
         app.args.initialize(argc,argv);
@@ -203,6 +188,14 @@ int main(int argc, char **argv)
         cout<<"Missing webmake.cfg from current directory.\n";
         return 2;
     }
+
+    if(app.args.is_set("-cl")) {
+        c4s::logbase::init_log(c4s::LL_INFO, new c4s::stderr_sink());
+    } else {
+        c4s::lowio_sink::mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP;
+        c4s::logbase::init_log(c4s::LL_INFO, new c4s::lowio_sink(c4s::path("webmake.log")));
+    }
+
     // Read the file lists
     state = NONE;
     while(!cfg.eof()) {
@@ -216,7 +209,7 @@ int main(int argc, char **argv)
         if(!strncmp("[js",line,3)) {
             char *end = strchr(line+4, ']');
             if(!end) {
-                cerr << "Incorrect JS syntax in webmake.cfg: "<<line<<'\n';
+                CS_VAPRT_ERRO("Incorrect JS syntax in webmake.cfg. Line: %d",line);
                 return 3;
             }
             *end = 0;
@@ -253,13 +246,16 @@ int main(int argc, char **argv)
         }
     }
     cfg.close();
-    if(!app.initializeParams())
-        return 2;
-
+    int rv = 0;
+    if(!app.initializeParams()) {
+        rv = 2;
+        goto EXIT_MAIN;
+    }
     // Now that we have settings, lets make sanity check.
     if(app.dir.empty()) {
-        cerr<<"Output directory has not been specified in cfg-settings or -out parameter.\n";
-        return 4;
+        CS_PRINT_ERRO("Output directory has not been specified in cfg-settings or -out parameter.");
+        rv = 4;
+        goto EXIT_MAIN;
     }
     if(!app.isVersion())
         app.readVersion();
@@ -278,16 +274,25 @@ int main(int argc, char **argv)
         if(app.isRunAll() || app.args.is_set("-css")) {
             MakeCSS(css_files, &app);
         }
+        if(app.getErrors()) {
+            cout<<app.getErrors()<<" errors found. See log for details.\n";
+            rv = 5;
+        }
     }
     catch (c4s_exception ce) {
-        cerr<<"Cpp4Scripts error: "<<ce.what()<<endl;
-        return 1;
+        CS_PRINT_ERRO(ce.what());
+        rv = 1;
+        goto EXIT_MAIN;
     }
     catch (runtime_error re) {
-        cerr<<"Build failed: "<<re.what()<<endl;
-        return 1;
+        CS_PRINT_ERRO(re.what());
+        rv = 1;
+        goto EXIT_MAIN;
     }
 
-    cout<<"Done.\n";
-    return 0;
+EXIT_MAIN:
+    c4s::logbase::close_log();
+    if(!rv)
+        cout<<"Done.\n";
+    return rv;
 }

@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 void MakeCSS(path_list &files, WebMakeApp *app)
 {
-    cout<<"Building CSS\n";
+    CS_PRINT_INFO("Building CSS");
 
     for(path_iterator css=files.begin(); css!=files.end(); css++) {
         struct Sass_File_Context *file_ctx = sass_make_file_context(css->get_path().c_str());
@@ -31,7 +31,7 @@ void MakeCSS(path_list &files, WebMakeApp *app)
             css << sass_context_get_output_string(ctx);
             css.close();
         } else {
-            cerr<<sass_context_get_error_message(ctx)<<'\n';
+            CS_PRINT_ERRO(sass_context_get_error_message(ctx));
         }
         sass_delete_file_context(file_ctx);
     }

@@ -17,23 +17,25 @@ using namespace c4s;
 // Application and properties.
 class WebMakeApp {
 public:
-    WebMakeApp();
-    ~WebMakeApp() { freeMarkdown(); }
+    WebMakeApp(ostream &output);
+    ~WebMakeApp();
 
     bool initializeParams();
 
-    static hoedown_document* getMarkdownDoc();
+    hoedown_document* getMarkdownDoc() { return document; }
 
     void parseSettingsCfg(const char *line);
     void readVersion();
     string getVersionStr() { return version_str; }
     void setTarget(const string &target, const char *ext=0);
-    bool isVerbose() { return verbose; }
     bool isChromeCC() { return use_chrome_cc; }
     bool isRunAll() { return run_all; }
     bool isVersion() { return !version_str.empty(); }
     string getHtmlFilter() { return html_filter; }
+    void incErrors() { errors++; }
+    int  getErrors() { return errors; }
     program_arguments args;
+
     path dir;
     string htmlprefix;
     string mdprefix;
@@ -43,14 +45,14 @@ private:
     char version_prefix[50];
     string version_str;
 
-    bool verbose;
     bool use_chrome_cc;
     bool run_all;
     string html_filter;
 
-    static void freeMarkdown();
-    static hoedown_renderer *renderer;
-    static hoedown_document *document;
+    int errors;
+
+    hoedown_renderer *renderer;
+    hoedown_document *document;
 };
 
 // Converters:

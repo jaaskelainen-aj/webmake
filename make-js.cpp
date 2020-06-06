@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 void MakeJS(path_list &files, WebMakeApp *app)
 {
-    cout<<"Building JS - "<<app->dir.get_base()<<"\n";
+    CS_VAPRT_INFO("Building JS - ",_C(app->dir.get_base()));
     if(app->isChromeCC()) {
         ostringstream err;
         // Find the Closure Compiler in current directory
@@ -29,7 +29,7 @@ void MakeJS(path_list &files, WebMakeApp *app)
                 throw runtime_error("MakeJS - closure-compiler.jar not found in current dir and CLOSURE_COMPILER not defined.");
             cc.set(cc_path);
             if(!cc.exists()) {
-                err<<"MakeJS - CLOSURE_COMPILER("<<cc_path<<") not found.";
+                CS_VAPRT_ERRO("MakeJS - CLOSURE_COMPILER (%s) not found.",_C(cc_path));
                 throw runtime_error(err.str());
             }
         }
@@ -43,12 +43,11 @@ void MakeJS(path_list &files, WebMakeApp *app)
                 java += js->get_path();
             java.pipe_to(&err);
             if(java() != 0) {
-                cerr << "MakeJS - Closure failed:\n";
-                cerr << err.str()<<"\n";
+                CS_VAPRT_ERRO("MakeJS - Closure failed: %s", _C(err.str()));
             }
         }
         catch(process_exception pe) {
-            cerr<<"MakeJS - Closure failed: "<<pe.what()<<'\n';
+            CS_VAPRT_ERRO("MakeJS - Closure failed: %s", pe.what() );
             throw std::move(pe);
         }
     }
@@ -57,13 +56,12 @@ void MakeJS(path_list &files, WebMakeApp *app)
         stump.close();
         try {
             for(path_iterator js=files.begin(); js!=files.end(); js++) {
-                if(app->isVerbose())
-                    cout<<"  appending:"<<js->get_base()<<'\n';
+                CS_VAPRT_INFO("  appending: %s",_C(js->get_base()));
                 app->dir.cat(*js);
             }
         }
         catch(const c4s_exception &ce) {
-            cerr<<"Concatenation of js-files failed. Check the file paths from config.\n";
+            CS_PRINT_ERRO("Concatenation of js-files failed. Check the file paths from config.");
             app->dir.rm();
         }
     }
